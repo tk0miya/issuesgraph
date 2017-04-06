@@ -3,16 +3,16 @@
 import io
 import sys
 import calendar
-import cPickle as pickle
+import pickle
 from datetime import datetime, timedelta
 from collections import namedtuple
+
+from fetch import Issue  # NOQA
 
 
 MIGRATED_TO_GITHUB = datetime(2015, 1, 2)
 
 
-Issue = namedtuple('Issue',
-                   ['number', 'url', 'state', 'created_at', 'closed_at'])
 Period = namedtuple('Period',
                     ['name', 'begin', 'end'])
 
@@ -65,7 +65,8 @@ def main(args):
     summary = {}
     periods = list(get_month_periods())
     for period in periods:
-        summary.setdefault(period, dict(opened=0, closed=0))
+        summary.setdefault(period, dict(opened_issues=0, closed_issues=0,
+                                        opened_pr=0, closed_pr=0, total=0))
 
     for issue in issues:
         created_at = parse_iso8601(issue.created_at)
@@ -74,26 +75,42 @@ def main(args):
         for period in periods:
             if period.end < created_at:  # not created yet
                 pass
-            elif closed_at and closed_at < period.end:
-                summary[period]['closed'] += 1
             else:
-                summary[period]['opened'] += 1
+                summary[period]['total'] += 1
+                if closed_at and closed_at < period.end:
+                    if issue.type == 'issue':
+                        summary[period]['closed_issues'] += 1
+                    else:
+                        summary[period]['closed_pr'] += 1
+                else:
+                    if issue.type == 'issue':
+                        summary[period]['opened_issues'] += 1
+                    else:
+                        summary[period]['opened_pr'] += 1
 
     with io.open('export.csv', 'w') as f:
-        f.write(u"month,opened,closed,total,,increase/month,close/month\n")
+        columns = [
+            "month",
+            "opened_issues", "opened_pr", "closed_issues", "closed_pr",
+            "total", "", "increase/mo", "close/mo"
+        ]
+        f.write(','.join(columns) + "\n")
         for i, period in enumerate(periods):
             result = summary[period]
+            data = (period.name,
+                    result['opened_issues'], result['opened_pr'],
+                    result['closed_issues'], result['closed_pr'],
+                    result['total'])
+            f.write(u"%s,%s,%s,%s,%s,%s,," % data)
             if i == 0:
-                f.write(u"%s,%s,%s,%s,,-,-\n" % (
-                    period.name, result['opened'], result['closed'],
-                    result['opened'] + result['closed']
-                ))
+                f.write(u"-,-\n")
             else:
-                f.write(u"%s,%s,%s,%s,,=D%d-D%d,=C%d-C%d\n" % (
-                    period.name, result['opened'], result['closed'],
-                    result['opened'] + result['closed'],
-                    i + 2, i + 1, i + 2, i + 1
-                ))
+                prev = i + 1
+                curr = i + 2
+                f.write(u"=F%d-F%d," % (curr, prev))
+                f.write(u"=SUM(D%d:E%d)-SUM(D%d:E%d)" %
+                        (curr, curr, prev, prev))
+                f.write(u"\n")
 
 
 if __name__ == "__main__":

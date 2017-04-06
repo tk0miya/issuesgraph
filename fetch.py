@@ -3,13 +3,14 @@
 import re
 import os
 import sys
-import cPickle as pickle
+import pickle
 import requests
 from collections import namedtuple
 
 
 Issue = namedtuple('Issue',
-                   ['number', 'url', 'state', 'created_at', 'closed_at'])
+                   ['number', 'url', 'state', 'reporter', 'type',
+                    'created_at', 'closed_at'])
 
 
 def paginate(query):
@@ -51,7 +52,12 @@ def main(args):
         assert response.status_code == 200
         issues = response.json()
         for item in issues:
+            if 'pull_request' in item:
+                issue_type = 'pull_request'
+            else:
+                issue_type = 'issue'
             issue = Issue(int(item['number']), item['url'], item['state'],
+                          item['user']['login'], issue_type,
                           item['created_at'], item.get('closed_at'))
             fetched.append(issue)
 
