@@ -19,7 +19,7 @@ Period = namedtuple('Period',
 
 def next_month(d):
     max_day = calendar.monthrange(d.year, d.month)[1]
-    return datetime(d.year, d.month, max_day) + timedelta(days=1)
+    return datetime(d.year, d.month, d.day) + timedelta(days=1)
 
 
 def get_first_month():
@@ -30,7 +30,7 @@ def get_month_periods():
     date = get_first_month()
     today = datetime.now()
     while date < today:
-        period = Period(date.strftime('%Y/%m'),
+        period = Period(date.strftime('%Y/%m/%d'),
                         date, next_month(date))
         yield period
         date = period.end
