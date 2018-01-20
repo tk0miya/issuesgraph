@@ -24,8 +24,8 @@ def paginate(query):
     yield response
 
     while response.status_code == 200:
-        matched = re.match('<(.*?)>; rel="next"',
-                           response.headers.get('link', ''))
+        matched = re.search('<([^<]*?)>; rel="next"',
+                            response.headers.get('link', ''))
         if not matched:
             break
         else:
